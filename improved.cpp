@@ -3,6 +3,8 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <fstream>
+#include <iostream>
 
 int number_bacteria;
 char** bacteria_name;
@@ -78,29 +80,34 @@ public:
 
 	Bacteria(char* filename)
 	{
-		FILE* bacteria_file;
-		errno_t OK = fopen_s(&bacteria_file, filename, "r");
 
-		if (OK != 0)
+		std::ifstream bacteria_file{filename};
+
+		if (!bacteria_file)
 		{
-			fprintf(stderr, "Error: failed to open file %s\n", filename);
+			// Print an error and exit
+			std::string fname = filename;
+			std::cerr << "Uh oh, " + fname + " could not be opened for reading!" << std::endl;
 			exit(1);
 		}
 
 		InitVectors();
 
 		char ch;
-		while ((ch = fgetc(bacteria_file)) != EOF)
+		while (bacteria_file.get(ch))
 		{
+
 			if (ch == '>')
 			{
-				while (fgetc(bacteria_file) != '\n'); // skip rest of line
+				//while (bacteria_file.get(ch) && ch != '\n'); // skip rest of line
+				std::string skip;
+				std::getline(bacteria_file, skip);
 
 				char buffer[LEN-1];
-				fread(buffer, sizeof(char), LEN-1, bacteria_file);
+				bacteria_file.read(buffer,LEN-1);
 				init_buffer(buffer);
 			}
-			else if (ch != '\n')
+			else if (ch != '\n' && ch != '\r')
 				cont_buffer(ch);
 		}
 
@@ -174,32 +181,33 @@ public:
 		}
 		delete t;
 
-		fclose (bacteria_file);
+		//fclose (bacteria_file);
 	}
 };
 
 void ReadInputFile(const char* input_name)
 {
-	FILE* input_file;
-	errno_t OK = fopen_s(&input_file, input_name, "r");
 
-	if (OK != 0)
+	std::ifstream input_file{input_name};
+
+	if (!input_file)
 	{
-		fprintf(stderr, "Error: failed to open file %s (Hint: check your working directory)\n", input_name);
+		std::string iname = input_name;
+		std::cerr << "Error: failed to open file " + iname + " (Hint: check your working directory)\n" << std::endl;
 		exit(1);
 	}
 
-	fscanf_s(input_file, "%d", &number_bacteria);
+	input_file >> number_bacteria;
 	bacteria_name = new char*[number_bacteria];
 
 	for(long i=0;i<number_bacteria;i++)
 	{
 		char name[10];
-		fscanf_s(input_file, "%s", name, 10);
+		input_file >> name;
 		bacteria_name[i] = new char[20];
-		sprintf_s(bacteria_name[i], 20, "data/%s.faa", name);
+		sprintf(bacteria_name[i], "data/%s.faa", name);
 	}
-	fclose(input_file);
+	//fclose(input_file);
 }
 
 double CompareBacteria(Bacteria* b1, Bacteria* b2)
