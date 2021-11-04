@@ -258,33 +258,48 @@ double CompareBacteria(Bacteria* b1, Bacteria* b2)
 	return correlation / (sqrt(vector_len1) * sqrt(vector_len2));
 }
 
-void CompareAllBacteria()
-{
+Bacteria** LoadAllBacteria() {
 	Bacteria** b = new Bacteria*[number_bacteria];
-    for(int i=0; i<number_bacteria; i++)
-	{
+	for(int i=0; i<number_bacteria; i++) {
 		printf("load %d of %d\n", i+1, number_bacteria);
 		b[i] = new Bacteria(bacteria_name[i]);
 	}
+	return b;
+}
 
-    for(int i=0; i<number_bacteria-1; i++)
-		for(int j=i+1; j<number_bacteria; j++)
-		{
+void CompareAllBacteria(Bacteria** b)
+{
+    for(int i=0; i<number_bacteria-1; i++) {
+		for(int j=i+1; j<number_bacteria; j++) {
 			printf("%2d %2d -> ", i, j);
 			double correlation = CompareBacteria(b[i], b[j]);
 			printf("%.20lf\n", correlation);
 		}
+	}
 }
 
 int main(int argc,char * argv[])
 {
-	time_t t1 = time(NULL);
+	time_t st = time(NULL);
 
+
+	time_t t1 = st;
 	Init();
 	ReadInputFile("list.txt");
-	CompareAllBacteria();
-
 	time_t t2 = time(NULL);
-	printf("time elapsed: %lld seconds\n", t2 - t1); 
+	printf("Init & ReadInputFile: %d seconds\n",  t2 -t1);
+
+	t1 = t2;
+	Bacteria** b = LoadAllBacteria();
+	t2 = time(NULL);
+	printf("LoadAllBacteria: %d seconds\n",  t2 -t1);
+
+	t1 = t2;
+	CompareAllBacteria(b);
+	t2 = time(NULL);
+	printf("CompareAllBacteria: %d seconds\n",  t2 -t1);
+	
+	
+	printf("Total time elapsed: %d seconds\n",  t2 -st);
 	return 0;
 }
