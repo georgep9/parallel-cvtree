@@ -7,10 +7,10 @@
 #include <iostream>
 #include <omp.h>
 #include <map>
+#include <chrono>
 
 #define PARA_LOAD       true
 #define PARA_COMPARE    true
-
 
 int number_bacteria;
 char** bacteria_name;
@@ -266,7 +266,6 @@ double CompareBacteria(Bacteria* b1, Bacteria* b2)
 
 Bacteria** LoadAllBacteria() {
     Bacteria** b = new Bacteria*[number_bacteria];
-
     for(int i=0; i<number_bacteria; i++) {
         printf("[Thread: %d] load %d of %d\n", 
             omp_get_thread_num(), i+1, number_bacteria);
@@ -278,7 +277,18 @@ Bacteria** LoadAllBacteria() {
 
 Bacteria** LoadAllBacteriaParallel() {
     Bacteria** b = new Bacteria*[number_bacteria];
+    #pragma omp parallel for
+    for(int i=0; i<number_bacteria; i++) {
+        printf("[Thread: %d] load %d of %d\n", 
+            omp_get_thread_num(), i+1, number_bacteria);
+        b[i] = new Bacteria(bacteria_name[i]);
+    }
 
+    return b;
+}
+
+Bacteria** LoadAllBacteriaParallel2() {
+    Bacteria** b = new Bacteria*[number_bacteria];
     #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<number_bacteria; i++) {
         printf("[Thread: %d] load %d of %d\n", 
@@ -311,34 +321,21 @@ void CompareAllBacteriaParallel(Bacteria** b){
 }
 
 void CompareAllBacteriaParallel2(Bacteria** b){
-    std::map<int,int> comb_i;
-    std::map<int,int> comb_j;
-    int comb_n = 0;
-
+    #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<number_bacteria-1; i++) {
         for(int j=i+1; j<number_bacteria; j++) {
-            comb_i[comb_n] = i;
-            comb_j[comb_n] = j;
-            comb_n++;
+            double correlation = CompareBacteria(b[i], b[j]);
+            printf("[Thread: %d] %2d %2d -> %.20lf\n", 
+                omp_get_thread_num(), i, j, correlation);
         }
     }
-
-    #pragma omp parallel for
-    for(int k=0; k<comb_n; k++){
-        int i = comb_i[k];
-        int j = comb_j[k];
-        double correlation = CompareBacteria(b[i], b[j]);
-        printf("[Thread: %d] %2d %2d -> %.20lf\n", 
-            omp_get_thread_num(), i, j, correlation);
-    }
 }
-
 
 void CompareAllBacteriaParallel3(Bacteria** b){
     std::map<int,int> comb_i;
     std::map<int,int> comb_j;
     int comb_n = 0;
-    
+
     for(int i=0; i<number_bacteria-1; i++) {
         for(int j=i+1; j<number_bacteria; j++) {
             comb_i[comb_n] = i;
@@ -359,27 +356,29 @@ void CompareAllBacteriaParallel3(Bacteria** b){
 
 int main(int argc,char * argv[])
 {
-    time_t st = time(NULL);
-
-    time_t t1 = st;
     Init();
     ReadInputFile("list.txt");
-    time_t t2 = time(NULL);
-    printf("Init & ReadInputFile: %d seconds\n",  t2 -t1);
 
-    t1 = t2;
+    using clock = std::chrono::high_resolution_clock;
+    auto start_t = clock::now();
+    auto now_t = start_t;
+
     Bacteria** b;
-    if (PARA_LOAD) { b = LoadAllBacteriaParallel(); } else { b = LoadAllBacteria(); }
-    t2 = time(NULL);
-    printf("\nLoadAllBacteria: %d seconds\n",  t2 -t1);
+    if (PARA_LOAD) { b = LoadAllBacteriaParallel2(); } else { b = LoadAllBacteria(); }
 
-    t1 = t2;
-    //CompareAllBacteria(b);
+    auto dur = (float) std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - now_t).count()
+        / 1000;
+    printf("\nLoadAllBacteria: %6.2lf seconds\n",  dur);
+    now_t = clock::now();
+
     if (PARA_COMPARE) { CompareAllBacteriaParallel3(b); } else { CompareAllBacteria(b); }
-    t2 = time(NULL);
-    printf("\nCompareAllBacteria: %d seconds\n",  t2 -t1);
 
+    dur = (float) std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - now_t).count()
+        / 1000;
+    printf("\nCompareAllBacteria: %6.2lf seconds\n",  dur);
 
-    printf("\nTotal time elapsed: %d seconds\n",  t2 -st);
+    float total_t = (float) std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - start_t).count()
+        / 1000;
+    printf("\nTotal time elapsed: %6.2lf seconds\n",  total_t);
     return 0;
 }
