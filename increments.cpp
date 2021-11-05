@@ -11,6 +11,7 @@
 
 #define PARA_LOAD       true
 #define PARA_COMPARE    true
+#define THREADS         9
 
 int number_bacteria;
 char** bacteria_name;
@@ -289,6 +290,7 @@ Bacteria** LoadAllBacteriaParallel() {
 
 Bacteria** LoadAllBacteriaParallel2() {
     Bacteria** b = new Bacteria*[number_bacteria];
+    omp_set_num_threads(THREADS);
     #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<number_bacteria; i++) {
         printf("[Thread: %d] load %d of %d\n", 
@@ -344,6 +346,7 @@ void CompareAllBacteriaParallel3(Bacteria** b){
         }
     }
 
+    omp_set_num_threads(THREADS);
     #pragma omp parallel for schedule(dynamic)
     for(int k=0; k<comb_n; k++){
         int i = comb_i[k];
